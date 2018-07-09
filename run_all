@@ -1,0 +1,150 @@
+#!/bin/csh
+
+
+
+
+set ext_num = "1"
+set ref_file = `head -1 name.list`
+
+
+
+@ allframe_i = 1
+while ($allframe_i <= 1)
+
+
+echo "entering IDL"
+
+gdl << _GDL_
+.r gen_addstar_lf
+gen_addstar_lf
+exit
+_GDL_
+
+
+
+
+
+rm -f *daopama.fits
+foreach file ( j*daopam.fits )
+	
+	echo "Working on ADDSTAR for" $file
+	set fileroot = $file:r
+	set addstar_file = $fileroot"a.fits"
+
+	# link als file to *pama.als to eventually
+	# create median images using the addstar results
+	ln -s $fileroot.als $fileroot"a.als"
+	ln -s $fileroot.psf $fileroot"a.psf"
+	                                                                       
+	# Random integer for ADDSTAR; should not matter
+	set rand_int = `python -c "import random; print random.randint(1,99)"`
+
+	daophot << __DAOPHOT-END__
+at $fileroot
+addstar
+$fileroot.psf
+$rand_int
+999999
+$fileroot.add
+$addstar_file
+Y
+EXIT
+__DAOPHOT-END__
+
+end
+
+
+# MONTAGE2 
+rm -f c2.fits
+montage2 << _MONTAGE2_
+c2.mch
+
+8,0.5
+-12,4096
+-61,2048
+1
+Y
+c2.fits
+_MONTAGE2_
+
+
+
+# Re-find all stars
+rm -f c2.coo
+rm -f c2.ap
+daophot << _DAOPHOT_
+ATTACH c2.fits
+FIND
+1,1
+c2.coo
+N
+3.5
+c2.coo
+OVERWRITE
+Y
+PHO
+photo
+Y
+c2.coo
+c2.ap
+EXIT
+_DAOPHOT_
+
+
+#  Run ALLSTAR with the appropriate commands.
+rm -f c2.als
+rm -f c2s.fits
+allstar << _ALLSTAR_
+Y
+c2.fits
+acs_c2_f814w_psfimage_x1e5.psf
+c2.ap
+c2.als
+c2s.fits
+EXIT
+_ALLSTAR_
+
+
+rm -f c2.mag
+daophot << _DAOPHOT_
+offset
+c2.als
+0,-13,-73,0
+c2.mag
+EXIT
+_DAOPHOT_
+
+
+
+# PREP FOR ALLFRAME
+        allframe << __ALLFRAME__
+Y
+c2.mch
+c2.mag
+__ALLFRAME__
+
+
+exit
+
+
+
+./daomaster_match_alf_raw
+
+
+if (! -d /$allframe_i ) then
+        mkdir $allframe_i
+endif
+
+mv -f $ext_num"_alf.raw" ./$allframe_i/
+# Input f814w and f606w files
+mv -f jcnw32q9q_flc_1_daopam.add ./$allframe_i/
+mv -f jcnw37rpq_flc_1_daopam.add ./$allframe_i/ 
+#mv -f jcn*.add ./$allframe_i/
+#mv -f jcn*.alf ./$allframe_i/
+
+@ allframe_i += 1
+
+end # end while loop of simulation
+
+ 
+
