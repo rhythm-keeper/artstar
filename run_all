@@ -8,8 +8,8 @@ set ref_file = `head -1 name.list`
 
 
 
-@ allframe_i = 1
-while ($allframe_i <= 1)
+@ allframe_i = 2
+while ($allframe_i <= 5)
 
 
 echo "entering IDL"

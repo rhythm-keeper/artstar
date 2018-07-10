@@ -95,6 +95,7 @@ pro load_pull_write_artstars,raw_file,f814w_add_file,f606w_add_file,filebasename
 		found_match_w_artstar=0
 		match_dist=1.0 ; pixel
 		; loop thourgh artstars
+		;print,'loop through artstars'
 		for el=start_loc,n_elements(x_artstar)-1 do begin
 			; calc dist
 			dx=x_artstar[el]-x_el
@@ -113,6 +114,7 @@ pro load_pull_write_artstars,raw_file,f814w_add_file,f606w_add_file,filebasename
 			endif
 			if x_artstar[el]-x_el gt 2.0 then break ; stop searching beyond some fwhm of stars
 		endfor
+		;print,'end loop through artstars'
 		if found_match_w_artstar eq 0 then continue
 
 	
@@ -247,6 +249,17 @@ pro load_pull_write_artstars,raw_file,f814w_add_file,f606w_add_file,filebasename
         y_out=y_out[ind]
 
 
+	; sort by x-coord for fast searching below
+	ind=sort(x_out)
+	f814w_out=f814w_out[ind]
+        f814werr_out=f814werr_out[ind]
+        f606w_out=f606w_out[ind]
+        f606werr_out=f606werr_out[ind]
+        chi_out=chi_out[ind]
+        sharp_out=sharp_out[ind]
+        id_out=id_out[ind]
+        x_out=x_out[ind]
+        y_out=y_out[ind]
 
 
         readcol,f606w_add_file,id_in,x_in,y_in,f606w_in,skipline=3
@@ -254,17 +267,19 @@ pro load_pull_write_artstars,raw_file,f814w_add_file,f606w_add_file,filebasename
 
 
 
+	print,'matching raw mags with artstars input'
+
 	openw,lunout,'condensed_artstar.dat',/get_lun,/append
 
         for i=0,n_elements(f814w_in)-1 do begin
 
 
-		dx=x_out-x_in[i]
-		dy=y_out-y_in[i]
-		distances=sqrt(dx^2.+dy^2.)
-		min_dist=min(distances)
-		ind=where(distances eq min_dist)
-		if min_dist le 1 then matched=1 else matched=0
+		;dx=x_out-x_in[i]
+		;dy=y_out-y_in[i]
+		;distances=sqrt(dx^2.+dy^2.)
+		;min_dist=min(distances)
+		;ind=where(distances eq min_dist)
+		;if min_dist le 1 then matched=1 else matched=0
 
 
                 ;ind=where(id_in[i] eq id_out,matched)
@@ -283,9 +298,10 @@ pro load_pull_write_artstars,raw_file,f814w_add_file,f606w_add_file,filebasename
                 ; boundary conditions http://www.harrisgeospatial.com/docs/VALUE_LOCATE.html
                 if start_loc eq -1 then start_loc=0
 
+		;print,start_loc,n_elements(x_out)
                 found_match_w_artstar=0
                 ; loop thourgh artstars
-                for el=start_loc,n_elements(x_artstar)-1 do begin
+                for el=start_loc,n_elements(x_out)-1 do begin
                         ; calc dist
                         dx=x_out[el]-x_in[i]  
                         dy=y_out[el]-y_in[i]
@@ -296,7 +312,7 @@ pro load_pull_write_artstars,raw_file,f814w_add_file,f606w_add_file,filebasename
 				ind=el
                                 break
                         endif
-                        if x_artstar[el]-x_el gt 2.0 then break ; stop searching beyond some fwhm of stars
+                        if x_out[el]-x_el gt 2.0 then break ; stop searching beyond some fwhm of stars
                 endfor
 
 
@@ -338,6 +354,8 @@ pro load_pull_write_artstars,raw_file,f814w_add_file,f606w_add_file,filebasename
 
 
         endfor
+
+	print,'end matching raw mags with artstars input'
 
 	close,lunout
         free_lun,lunout

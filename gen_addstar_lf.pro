@@ -8,8 +8,8 @@ max_y=2048
 
 
 
-TRGB_val=18.3 ; guess real TRGB val
-F814W_cal=6.5 ; calibration 
+TRGB_val=26.3 ; guess real TRGB val
+F814W_cal=7.2 ; calibration 
 M_TRGB=TRGB_val-F814W_cal ; TRGB val in instr. system for daophot
 
 ; resolution of magnitudes to input
