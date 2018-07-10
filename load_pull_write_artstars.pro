@@ -1,10 +1,27 @@
-pro load_pull_write_artstars,raw_files,f814w_add_files,f606w_add_files,filebasenames,iter,mch_file,n_artstar_max,ref_f814w_exptime,ref_f606w_exptime,n_f814w_images
+pro load_pull_write_artstars,raw_file,f814w_add_file,f606w_add_file,filebasenames,iter,mch_file,n_artstar_max,ref_f814w_exptime,ref_f606w_exptime,n_f814w_images
+
+
+	; search coordinate list of input artificial stars
+	readcol,f814w_add_file,id_artstar,x_artstar,y_artstar,skipline=3
+
+
+	; make monotonically increasing
+	x_sorted=sort(x_artstar)
+	id_artstar=id_artstar[x_sorted]
+	x_artstar=x_artstar[x_sorted]
+	y_artstar=y_artstar[x_sorted]
+
+;ind=where(id_artstar eq 300089)
+;print,ind
+;print,x_artstar[ind],y_artstar[ind]
+;stop
+
 
 
 
         n_images=file_lines(mch_file)
 
-        openr,lun,raw_files[iter],/get_lun
+        openr,lun,raw_file,/get_lun
         linenum=0L
         line=''
         header=[]
@@ -41,6 +58,7 @@ pro load_pull_write_artstars,raw_files,f814w_add_files,f606w_add_files,filebasen
                 magerr=[]
 
 
+
                 curr_line=0
                 while curr_line lt n_images do begin
 
@@ -60,18 +78,45 @@ pro load_pull_write_artstars,raw_files,f814w_add_files,f606w_add_files,filebasen
                 chi_el=float(gettok(line," "))
                 sharp_el=float(gettok(line," "))
 
+		;print,id_el,x_el,y_el
+		;print,mag
+		;print,'------'
+		;
+		;if id_el eq 503 then stop
 
-		; search coordinate list of input artificial stars
-		start_loc=value_locate(x_artstars,x_el)
+		
+		
+		start_loc=value_locate(x_artstar,x_el)
+		start_loc=start_loc[0] ; for some reason needs this for loop to work below...
+		; boundary conditions http://www.harrisgeospatial.com/docs/VALUE_LOCATE.html
+		if start_loc eq -1 then start_loc=0
+
+
+		found_match_w_artstar=0
+		match_dist=1.0 ; pixel
 		; loop thourgh artstars
-		for el=start_loc,n_elements(x_artstars)-1 do begin
+		for el=start_loc,n_elements(x_artstar)-1 do begin
 			; calc dist
-			if x_artstars[el]-x_el gt 2*1.6 then el=n_elements(x_artstars) ; stop searching beyond some fwhm of stars
+			dx=x_artstar[el]-x_el
+			dy=y_artstar[el]-y_el
+			distance=sqrt(dx^2.+dy^2.)
+			min_dist=min(distance)
+		;	if id_el eq 503 then begin
+		;
+		;		print,x_el,y_el,min_dist,id_el
+		;		print,el
+		;		print,x_artstar[180],y_artstar[180]
+		;	endif
+			if min_dist le match_dist then begin
+				found_match_w_artstar=1
+				break	
+			endif
+			if x_artstar[el]-x_el gt 2.0 then break ; stop searching beyond some fwhm of stars
 		endfor
+		if found_match_w_artstar eq 0 then continue
 
-
-
-                if id_el lt 2e5 or id_el ge 5e5 then continue ; non valid IDs
+	
+                ;if id_el lt 2e5 or id_el ge 5e5 then continue ; non valid IDs
 
 
                 ; Average magnitudes F814W
@@ -120,12 +165,6 @@ pro load_pull_write_artstars,raw_files,f814w_add_files,f606w_add_files,filebasen
                 delvar,fluxerrs
                 delvar,mag_list
                 delvar,magerr_list
-
-                ;if id_el eq 200000 then begin
-                ;        print,mag_list 
-                ;       print,f814w_out[mag_out_el]
-                ;       stop
-                ;endif
 
 
 
@@ -193,6 +232,7 @@ pro load_pull_write_artstars,raw_files,f814w_add_files,f606w_add_files,filebasen
 
         endwhile
 
+	close,lun
         free_lun,lun
 
         ind=where(f814w_out ne -99)
@@ -209,25 +249,59 @@ pro load_pull_write_artstars,raw_files,f814w_add_files,f606w_add_files,filebasen
 
 
 
-        readcol,f606w_add_files[iter],id_in,x_in,y_in,f606w_in,skipline=3
-        readcol,f814w_add_files[iter],id_in,x_in,y_in,f814w_in,skipline=3
+        readcol,f606w_add_file,id_in,x_in,y_in,f606w_in,skipline=3
+        readcol,f814w_add_file,id_in,x_in,y_in,f814w_in,skipline=3
 
 
+
+	openw,lunout,'condensed_artstar.dat',/get_lun,/append
 
         for i=0,n_elements(f814w_in)-1 do begin
-                ind=where(id_in[i] eq id_out,matched)
 
-                all_id=id_in[i]
-                all_f814w_in=f814w_in[i]
-                all_f606w_in=f606w_in[i]
+
+		dx=x_out-x_in[i]
+		dy=y_out-y_in[i]
+		distances=sqrt(dx^2.+dy^2.)
+		min_dist=min(distances)
+		ind=where(distances eq min_dist)
+		if min_dist le 1 then matched=1 else matched=0
+
+
+                ;ind=where(id_in[i] eq id_out,matched)
+
+                ;all_id=id_in[i]
+                ;all_f814w_in=f814w_in[i]
+                ;all_f606w_in=f606w_in[i]
 
                 ;if id_in eq 200000 then begin
                 ;        print,f814w_in[i],f814w_out[ind]
                 ;       stop
                 ;endif
 
+		start_loc=value_locate(x_out,x_in[i])
+                start_loc=start_loc[0] ; for some reason needs this for loop to work below...
+                ; boundary conditions http://www.harrisgeospatial.com/docs/VALUE_LOCATE.html
+                if start_loc eq -1 then start_loc=0
 
-                if matched then begin
+                found_match_w_artstar=0
+                ; loop thourgh artstars
+                for el=start_loc,n_elements(x_artstar)-1 do begin
+                        ; calc dist
+                        dx=x_out[el]-x_in[i]  
+                        dy=y_out[el]-y_in[i]
+                        distance=sqrt(dx^2.+dy^2.)
+                        min_dist=min(distance)
+                        if min_dist le match_dist then begin
+                                found_match_w_artstar=1
+				ind=el
+                                break
+                        endif
+                        if x_artstar[el]-x_el gt 2.0 then break ; stop searching beyond some fwhm of stars
+                endfor
+
+
+
+                if found_match_w_artstar then begin
                         all_f814w_out=f814w_out[ind]
                         all_f814werr_out=f814werr_out[ind]
                         all_f606w_out=f606w_out[ind]
@@ -247,30 +321,26 @@ pro load_pull_write_artstars,raw_files,f814w_add_files,f606w_add_files,filebasen
 
                 endelse
 
-                all_x_out=x_in[i]
-                all_y_out=y_in[i]
 
 
-                openw,lunout,'condensed_artstar.dat',/get_lun,/append
-                printf,lunout,strtrim(all_id,2)+" "+$
-                        strtrim(all_x_out,2)+" "+$
-                        strtrim(all_y_out,2)+" "+$
-                        strtrim(all_f606w_in,2)+" "+$
-                        strtrim(all_f814w_in,2)+" "+$
+
+                printf,lunout,strtrim(id_in[i],2)+" "+$
+                        strtrim(x_in[i],2)+" "+$
+                        strtrim(y_in[i],2)+" "+$
+                        strtrim(f606w_in[i],2)+" "+$
+                        strtrim(f814w_in[i],2)+" "+$
                         strtrim(all_f606w_out,2)+" "+$
                         strtrim(all_f606werr_out,2)+" "+$
                         strtrim(all_f814w_out,2)+" "+$
                         strtrim(all_f814werr_out,2)+" "+$
                         strtrim(all_chi_out,2)+" "+$
                         strtrim(all_sharp_out,2)
-                free_lun,lunout
 
-
-
-
-                ;count+=1
 
         endfor
+
+	close,lunout
+        free_lun,lunout
 
 
         delvar,f814w_out

@@ -37,7 +37,7 @@ foreach file ( j*daopam.fits )
 	ln -s $fileroot.psf $fileroot"a.psf"
 	                                                                       
 	# Random integer for ADDSTAR; should not matter
-	set rand_int = `python -c "import random; print random.randint(1,99)"`
+	set rand_int = `python -c "import random; print (random.randint(1,99))"`
 
 	daophot << __DAOPHOT-END__
 at $fileroot
@@ -66,6 +66,8 @@ c2.mch
 Y
 c2.fits
 _MONTAGE2_
+
+
 
 
 
@@ -109,7 +111,7 @@ rm -f c2.mag
 daophot << _DAOPHOT_
 offset
 c2.als
-0,-13,-73,0
+0,-13,-62,0
 c2.mag
 EXIT
 _DAOPHOT_
@@ -124,9 +126,6 @@ c2.mag
 __ALLFRAME__
 
 
-exit
-
-
 
 ./daomaster_match_alf_raw
 
@@ -137,10 +136,8 @@ endif
 
 mv -f $ext_num"_alf.raw" ./$allframe_i/
 # Input f814w and f606w files
-mv -f jcnw32q9q_flc_1_daopam.add ./$allframe_i/
-mv -f jcnw37rpq_flc_1_daopam.add ./$allframe_i/ 
-#mv -f jcn*.add ./$allframe_i/
-#mv -f jcn*.alf ./$allframe_i/
+mv -f jcnw22qdq_flc_1_daopam.add ./$allframe_i/
+mv -f jcnw22qxq_flc_1_daopam.add ./$allframe_i/ 
 
 @ allframe_i += 1
 
