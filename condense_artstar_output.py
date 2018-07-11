@@ -1,1 +1,0 @@
-../artificial_star_4/condense_artstar_output.py
