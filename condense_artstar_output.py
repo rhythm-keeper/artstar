@@ -17,7 +17,8 @@ def file_len(fname):
 
 def get_avg_mag_magerr(mag,magerr):
 	"""
-	Flux averaged magnitudes
+	Returns flux averaged magnitudes
+	Inputs: mag array, magerr array
 	"""
 	
 	fluxes=[]
@@ -81,7 +82,7 @@ def get_artstar_coord_to_match_against_raw_file(f814w_add_file):
 	return [x_artstar,y_artstar,mag_artstar]
 
 
-def load_pull_write_artstars(raw_file,f814w_add_file,f606w_add_file,filebasenames,exptime_mag_diff,el,n_images,n_artstar_max,ref_f814w_exptime,ref_f606w_exptime,n_f814w_images):
+def load_pull_write_artstars(raw_file,f814w_add_file,f606w_add_file,filebasenames,exptime_mag_diff,el,n_images,ref_f814w_exptime,ref_f606w_exptime,n_f814w_images):
 
 
 	# get coordinate list of input artificial stars
@@ -208,8 +209,7 @@ def load_pull_write_artstars(raw_file,f814w_add_file,f606w_add_file,filebasename
 
 
 # User input
-n_f814w_images=6
-n_artstar_max=int(2000)
+n_f814w_images=4
 n_images=file_len("name.list")
 second_band_index=n_f814w_images
 
@@ -264,6 +264,6 @@ for el in range(len(f814w_add_files)):
 
 	print(raw_files[el],f814w_add_files[el],el)
 
-	load_pull_write_artstars(raw_files[el],f814w_add_files[el],f606w_add_files[el],filebasenames,exptime_mag_diff,el,n_images,n_artstar_max,ref_f814w_exptime,ref_f606w_exptime,n_f814w_images)
+	load_pull_write_artstars(raw_files[el],f814w_add_files[el],f606w_add_files[el],filebasenames,exptime_mag_diff,el,n_images,ref_f814w_exptime,ref_f606w_exptime,n_f814w_images)
 
 
