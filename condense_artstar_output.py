@@ -81,7 +81,7 @@ def get_artstar_coord_to_match_against_raw_file(f814w_add_file):
 	return [x_artstar,y_artstar,mag_artstar]
 
 
-def load_pull_write_artstars(raw_file,f814w_add_file,f606w_add_file,filebasenames,el,n_images,n_artstar_max,ref_f814w_exptime,ref_f606w_exptime,n_f814w_images):
+def load_pull_write_artstars(raw_file,f814w_add_file,f606w_add_file,filebasenames,exptime_mag_diff,el,n_images,n_artstar_max,ref_f814w_exptime,ref_f606w_exptime,n_f814w_images):
 
 
 	# get coordinate list of input artificial stars
@@ -187,6 +187,10 @@ def load_pull_write_artstars(raw_file,f814w_add_file,f606w_add_file,filebasename
 			#print(distance,id_el,x_el,y_el,x_artstar[el],y_artstar[el])	
 			#exit(0)
 
+			# correct for exptime differences
+			for mag_el in range(n_images):
+				mag_arr[mag_el] += exptime_mag_diff[mag_el]
+
 
 			# convert to fluxes, get average mag
 			avg_mag_band1,avg_magerr_band1 = get_avg_mag_magerr(mag_arr[0:second_band_index],magerr_arr[0:second_band_index])
@@ -267,6 +271,7 @@ with open('name.list') as f:
 		name=row.split()
 		filebasenames.append(name[0])	
 
+
 # Relevant files from which to extract data
 f814w_add_files=glob.glob('*/*'+filebasenames[0]+'*.add')
 f606w_add_files=glob.glob('*/*'+filebasenames[n_f814w_images-n_images]+'*.add')
@@ -278,6 +283,18 @@ ref_f814w_exptime=hdulist[0].header['EXPTIME']
 hdulist = pyfits.open(filebasenames[n_f814w_images-n_images]+'.fits')
 ref_f606w_exptime=hdulist[0].header['EXPTIME']
 
+# get exposure time correction list
+exptime_mag_diff=np.zeros(n_images)
+for count,filebasename in enumerate(filebasenames):
+	hdulist = pyfits.open(filebasename+'.fits')
+	curr_exptime=hdulist[0].header['EXPTIME']
+	if count < second_band_index:
+		exptime_mag_diff[count] = np.log10(curr_exptime/ref_f814w_exptime)
+	else:
+		exptime_mag_diff[count] = np.log10(curr_exptime/ref_f606w_exptime)	
+
+	
+
 if len(f814w_add_files) != len(raw_files) or len(f606w_add_files) != len(raw_files): 
 	print('number of files do not match') 
 	exit(1)
@@ -288,4 +305,4 @@ for el in range(len(f814w_add_files)):
 
 	print(raw_files[el],f814w_add_files[el],el)
 
-	load_pull_write_artstars(raw_files[el],f814w_add_files[el],f606w_add_files[el],filebasenames,el,n_images,n_artstar_max,ref_f814w_exptime,ref_f606w_exptime,n_f814w_images)
+	load_pull_write_artstars(raw_files[el],f814w_add_files[el],f606w_add_files[el],filebasenames,exptime_mag_diff,el,n_images,n_artstar_max,ref_f814w_exptime,ref_f606w_exptime,n_f814w_images)
