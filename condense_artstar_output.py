@@ -89,19 +89,6 @@ def load_pull_write_artstars(raw_file,f814w_add_file,f606w_add_file,filebasename
 	mag2_x_artstar,mag2_y_artstar,mag2_artstar=get_artstar_coord_to_match_against_raw_file(f606w_add_file)
 
 	
-	# Allocate memory to read in data of artstars
-	#f814w_out=np.array([-99 for x in range(n_artstar_max)])
-	#f814werr_out=np.array([-99 for x in range(n_artstar_max)])
-	#f606w_out=np.array([-99 for x in range(n_artstar_max)])
-	#f606werr_out=np.array([-99 for x in range(n_artstar_max)])
-	#id_out=np.array([-99 for x in range(n_artstar_max)])
-	#x_out=np.array([-99 for x in range(n_artstar_max)])
-	#y_out=np.array([-99 for x in range(n_artstar_max)])
-	#chi_out=np.array([-99 for x in range(n_artstar_max)])
-	#sharp_out=np.array([-99 for x in range(n_artstar_max)])
-	#mag_out_el=0
-	
-
 	
 	# count number of stars in file
 	num_rows_per_object=int(n_images / 6) + 1 # 6 images per line
@@ -127,8 +114,6 @@ def load_pull_write_artstars(raw_file,f814w_add_file,f606w_add_file,filebasename
 			for i in range(num_rows_per_object):
 			        parts.extend(f.readline().split())
 			
-			#print(parts,star_num,nstars)
-			#exit(0)
 			
 			# loop through star values and record them
 			part_num=0
@@ -153,16 +138,10 @@ def load_pull_write_artstars(raw_file,f814w_add_file,f606w_add_file,filebasename
 			sharp_el=float(parts[part_num])
 			part_num+=1
 
-			#print(mag_arr)
-			#print(chi_el,sharp_el)
-			#exit(0)	
 			
 
 			# see if star is an artstar by matching by coord
 			start_loc=bisect.bisect_right(mag1_x_artstar,x_el-2) # start matching a little ahead of possible match
-			#print(start_loc)
-			#print(x_artstar[start_loc],x_el)
-			#exit(0)
 
 
 			found_match_w_artstar=0
@@ -179,13 +158,11 @@ def load_pull_write_artstars(raw_file,f814w_add_file,f606w_add_file,filebasename
 					artstar_mag2_input = mag2_artstar[el]
 
 					break
+				# end search if well-beyond possible match radius
 				if mag1_x_artstar[el]-x_el > 2.0: break
 			if found_match_w_artstar == 0: 
 				star_num+=1
 				continue	
-
-			#print(distance,id_el,x_el,y_el,x_artstar[el],y_artstar[el])	
-			#exit(0)
 
 			# correct for exptime differences
 			for mag_el in range(n_images):
@@ -195,31 +172,14 @@ def load_pull_write_artstars(raw_file,f814w_add_file,f606w_add_file,filebasename
 			# convert to fluxes, get average mag
 			avg_mag_band1,avg_magerr_band1 = get_avg_mag_magerr(mag_arr[0:second_band_index],magerr_arr[0:second_band_index])
 			avg_mag_band2,avg_magerr_band2 = get_avg_mag_magerr(mag_arr[second_band_index:n_images],magerr_arr[second_band_index:n_images])
-			#print(mag_arr[0:second_band_index])
-			#print(avg_mag_band1,avg_magerr_band1,avg_mag_band2,avg_magerr_band2)
-			#exit(0)
 
 			star_num+=1
 
-
-			# store values of measured star that's been matched with an artstar
-			#f814w_out[mag_out_el]=avg_mag_band1
-			#f814werr_out[mag_out_el]=avg_magerr_band1
-			#f606w_out[mag_out_el]=avg_mag_band2
-		        #f606werr_out[mag_out_el]=avg_magerr_band2
-			#chi_out[mag_out_el]=chi_el
-			#sharp_out[mag_out_el]=sharp_el
-			#id_out[mag_out_el]=id_el
-			#x_out[mag_out_el]=x_el
-			#y_out[mag_out_el]=y_el
-
-			#mag_out_el+=1
 
 
 
 			# write matched info to file
 			with open('condensed_artstar.dat',"a") as outf:
-			#outfile=open('condensed_artstar.dat',"w+")
         		                	
 				# write to file
 				id_string=str(id_el)
@@ -242,10 +202,9 @@ def load_pull_write_artstars(raw_file,f814w_add_file,f606w_add_file,filebasename
 					chi_string+"    "+sharp_string+"\n")
 
 
-	#outfile.close()	
-	#exit(0)		
 
 
+##################################################################
 
 
 # User input
@@ -306,3 +265,5 @@ for el in range(len(f814w_add_files)):
 	print(raw_files[el],f814w_add_files[el],el)
 
 	load_pull_write_artstars(raw_files[el],f814w_add_files[el],f606w_add_files[el],filebasenames,exptime_mag_diff,el,n_images,n_artstar_max,ref_f814w_exptime,ref_f606w_exptime,n_f814w_images)
+
+
