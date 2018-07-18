@@ -5,6 +5,8 @@ import numpy as np
 from astropy.io import fits
 import random
 import bisect
+from scipy import spatial
+import matplotlib.pyplot as plt
 
 
 def file_len(fname):
@@ -15,14 +17,18 @@ def file_len(fname):
 
 
 def make_ascii_record(artstar_file):
+	"""
+	Read data into columns first,
+	then store in a records table for cleanness 
 
-	# Read data into columns first,
-	# then store in a records table for cleanness 
+	All stars in this file are those that have
+	been measured and matched with the input stars.
+	"""
 
 	n_stars_max=file_len(artstar_file)-1 # -1 to ignore heaer
 
-	record = np.zeros( n_stars_max, dtype=[('x_in','f8'),('y_in','f8'),('f606w_in','f8'),\
-						('f814w_in','f8'),('f606w_out','f8'),('f814w_out','f8')] )
+	record = np.zeros( n_stars_max, dtype=[('x_in','f8'),('y_in','f8'),('f814w_in','f8'),\
+						('f606w_in','f8'),('f814w_out','f8'),('f606w_out','f8')] )
 
 	rownum=0
 	with open(artstar_file) as f:
@@ -33,6 +39,9 @@ def make_ascii_record(artstar_file):
 
 			parts=row.split()
 
+			# check magerr, chi, and sharp criteria
+			#if magerr > x*mag or chi gt x or sharp gt x or sharp < x: continue 
+
 			record[rownum]=(float(parts[1]),float(parts[2]),float(parts[3]),float(parts[4]),\
 				float(parts[5]),float(parts[7]))
 
@@ -41,7 +50,7 @@ def make_ascii_record(artstar_file):
 	return record
 
 
-def get_artstar_subsample(record_table,nstars_to_sample,use_cdfs=0):
+def get_artstar_subsample(record_table,nstars_to_sample,kd_tree,use_cdfs=0):
 
 
 	num_poss=len(record_table)
@@ -49,10 +58,6 @@ def get_artstar_subsample(record_table,nstars_to_sample,use_cdfs=0):
 
 	# Ext 1 chip 2
 	subset_indices=np.zeros(nstars_to_sample, dtype=int)
-	#x_artstar=np.zeros(nstars_to_sample)
-	#y_artstar=np.zeros(nstars_to_sample)
-	#f814w_artstar=np.zeros(nstars_to_sample)
-	#f606w_artstar=np.zeros(nstars_to_sample)
                                              
 
 	count=0
@@ -60,50 +65,22 @@ def get_artstar_subsample(record_table,nstars_to_sample,use_cdfs=0):
 	                                                                                                                             
 		if use_cdfs: 
 	                                                                                                                             
-			rand_x_val=randomu(seed)
-			rand_y_val=randomu(seed)
+			rand_x_val=random.uniform()
+			rand_y_val=random.uniform()
 			
 			# find where the random number falls in the CDF
-			prob_x_cdf_val_of_nearest_result=nearest_element(rand_x_val,prob_x_cdf,ind_of_nearest_x_el)
-			#dx=abs(prob_x_cdf-rand_x_val)
-			#ind_of_nearest_x_el=where(dx eq min(dx))
-			
-			prob_y_cdf_val_of_nearest_result=nearest_element(rand_y_val,prob_y_cdf,ind_of_nearest_y_el)	
-			# dy=abs(prob_y_cdf-rand_y_val)
-			# ind_of_nearest_y_el=where(dy eq min(dy))
-			
+			# bisect left
+			ind_of_nearest_x_el=bisect.bisect_right(prob_x_cdf,rand_x_val)
+			ind_of_nearest_y_el=bisect.bisect_right(prob_y_cdf,rand_x_valrand_y_val)
+
 			# find out what x value this place in the CDF corresponds to
 			xval_of_nearest_el=xpos[ind_of_nearest_x_el]              			
 			yval_of_nearest_el=ypos[ind_of_nearest_y_el]
 			
-			# add random element to positions to pick out 
-			# so the same sources don't get reselect every time
-			xval_of_nearest_el+=randomn(seed)*rwalk_scale # random walk	
-			yval_of_nearest_el+=randomn(seed)*rwalk_scale #
-			
-			
-			search_rad = 10
-			match = -1
-			while match == -1: 
-			        match=match_2d([xval_of_nearest_el],[yval_of_nearest_el],x_in,y_in,search_rad,MATCH_DISTANCE=md)
-			        #print,xval_of_nearest_el,yval_of_nearest_el,x_in[match],y_in[match]
-			        search_rad *= 2
-			#print,xval_of_nearest_el,x_in[match],yval_of_nearest_el,y_in[match]
-			
-			#el=0L
-			#while el lt n_elements(x_in) do begin
-			#	diff_x_vals[el]=x_in[el]-xval_of_nearest_el
-			#	diff_y_vals[el]=y_in[el]-yval_of_nearest_el
-			#	el+=1
-			#endwhile 
-				
-			# find closest xval in simulated data
-			 #dx=x_in-xval_of_nearest_el
-			 #dy=y_in-yval_of_nearest_el
-			 #distances=sqrt(diff_x_vals^2.+diff_y_vals^2.)
-			 #min_dist_ind=where(distances eq min(distances))
-			
-			
+			# use KDTree to get index of closest artificial star
+			distance_from_nn, ind_of_nn = kd_tree.query([xval_of_nearest_el,yval_of_nearest_el])
+
+			subset_indices[count]=ind_of_nn	
 			
 			#print,strtrim(xval_of_nearest_el,2)+" "+strtrim(x_in[min_dist_ind],2)+" "+$
 			#	strtrim(yval_of_nearest_el,2)+" "+strtrim(y_in[min_dist_ind],2)
@@ -235,6 +212,13 @@ def gloess(data,binsize,smooth_factor):
 		bin_val[rownum] = min_data_val + binsize * (bin_loop + 0.5)
 		rownum += 1
 	
+	# For small smoothing, possible to have
+	# bins ~0 (below measured precision)
+	rownum=0
+	for el in sigma: 
+		if el == 0.0: sigma[rownum]=1e-32 # non-zero
+		rownum += 1
+
 	total_weight = np.sum(weight)
 	frac_weight = [abs(x) / y * 1./total_weight for x,y in zip(sobel,sigma)]
 	                                                                                               
@@ -256,19 +240,13 @@ def main():
 	# spatially sample artificial stars
 	# to follow distribution in images
 	use_cdfs=0
-	# if using cdfs, set random walk scale
-	# to use other nearby stars at random
-	# if the sample of artificial stars
-	# is small. other same stars may be
-	# frequently chosen
-	rwalk_scale=10 # pix
 	
 	# the range in mag centered
 	# on the trgb to sample stars from
 	mag_range=0.75
 	
 	# number of trgb measurements
-	n_attempts=int(1e4)
+	n_attempts=int(500)
 	
 	# if the dao output
 	# hasnt been calibrated yet
@@ -283,7 +261,27 @@ def main():
 	record_table_1 = make_ascii_record("condensed_artstar_1.dat") 
 	record_table_4 = make_ascii_record("condensed_artstar_4.dat")
 
-	#print(record_table_4['x_in'][:])
+	# if using cdfs to spatially sample
+	# stars, use K-D trees to quickly
+	# find matching pairs 
+	if use_cdfs:
+		xy_pairs_1=list(zip(record_table_1['x_in'],record_table_1['y_in']))
+		xy_pairs_4=list(zip(record_table_4['x_in'],record_table_4['y_in']))
+		kd_tree_1 = spatial.KDTree(xy_pairs_1)#,leafsize=40) 
+		kd_tree_4 = spatial.KDTree(xy_pairs_4)#,leafsize=40)
+	else:	
+		kd_tree_1 = None 
+		kd_tree_4 = None
+
+	#xy_pairs_1=list(zip(record_table_1['x_in'],record_table_1['y_in']))
+	#kd_tree_1 = spatial.KDTree(xy_pairs_1,leafsize=10)
+	
+	#while True:
+	#	print(kd_tree_1.query([813.0,6.42]))	
+
+	#kd_tree_1 = spatial.KDTree(xy_pairs_1[0:5])
+	#print(xy_pairs_1[0:5])
+	#print(kd_tree_1.query([813.0,6.42]))
 	#exit(0)
 	
 	
@@ -306,7 +304,7 @@ def main():
 	
 	
 	
-	min_smoothing_scale=0.09
+	min_smoothing_scale=0.01
 	max_smoothing_scale=0.20
 	dsmoothing_scale=0.01
 	binsize=0.01
@@ -342,10 +340,18 @@ def main():
 			for gloess_attempt in range(n_attempts):
 	
 				# Get stars chip 1
-				subset_indices_4 = get_artstar_subsample(record_table_4, nstars_to_sample_4)
+				subset_indices_4 = get_artstar_subsample(record_table_4, nstars_to_sample_4,kd_tree_4)
 				# Get stars chip 2
-				subset_indices_1 = get_artstar_subsample(record_table_1, nstars_to_sample_1)
-	
+				subset_indices_1 = get_artstar_subsample(record_table_1, nstars_to_sample_1,kd_tree_1)
+
+				#f814w=record_table_1['f814w_out'][subset_indices_1]
+				#f606w=record_table_1['f606w_out'][subset_indices_1]
+				#f606w_m_f814w=[x-y for x,y in zip(f606w,f814w)]
+				#plt.scatter(f606w_m_f814w,f814w)
+				#plt.ylim(23,18)
+				#plt.show()
+				#exit(0)	
+
 				# Combine stars from both CCDs
 				f814w_artstar=np.array( list(record_table_1['f814w_out'][subset_indices_1]) +\
 							list(record_table_4['f814w_out'][subset_indices_4]) ) 
